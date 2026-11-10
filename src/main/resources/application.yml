@@ -24,3 +24,6 @@ noshow:
   evaluator:
     # How often the late-detection sweep runs, in milliseconds.
     interval-ms: ${EVALUATOR_INTERVAL_MS:30000}
+  alerts:
+    # Where alert emails go. Single address for now; per-account in M4.
+    recipient: ${ALERT_RECIPIENT:}

@@ -3,8 +3,10 @@ package io.noshow.evaluator;
 import io.noshow.domain.Check;
 import io.noshow.domain.CheckEvent;
 import io.noshow.domain.CheckStatus;
+import io.noshow.domain.NotificationKind;
 import io.noshow.repo.CheckEventRepository;
 import io.noshow.repo.CheckRepository;
+import io.noshow.service.NotificationService;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,10 +28,13 @@ public class CheckTransitioner {
 
     private final CheckRepository checks;
     private final CheckEventRepository events;
+    private final NotificationService notifications;
 
-    public CheckTransitioner(CheckRepository checks, CheckEventRepository events) {
+    public CheckTransitioner(CheckRepository checks, CheckEventRepository events,
+                             NotificationService notifications) {
         this.checks = checks;
         this.events = events;
+        this.notifications = notifications;
     }
 
     @Transactional
@@ -57,6 +62,9 @@ public class CheckTransitioner {
             check.transitionTo(to);
             checks.save(check);
             events.save(new CheckEvent(UUID.randomUUID(), check.getId(), from, to, now, REASON));
+            if (to == CheckStatus.DOWN) {
+                notifications.enqueue(check, NotificationKind.DOWN, now);
+            }
         }
     }
 }
