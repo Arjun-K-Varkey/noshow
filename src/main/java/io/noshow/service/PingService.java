@@ -1,53 +1,40 @@
 package io.noshow.service;
 
-import io.noshow.domain.Check;
-import io.noshow.domain.PingEvent;
 import io.noshow.domain.PingKind;
-import io.noshow.repo.CheckRepository;
-import io.noshow.repo.PingEventRepository;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Clock;
-import java.time.Instant;
-import java.util.UUID;
-
+/**
+ * Records pings. A concurrent evaluator sweep can make a ping's write lose the
+ * optimistic-lock race (the sweep commits its transition first). The ping is
+ * the source of truth — a job really did check in — so rather than failing the
+ * request we retry against the reloaded check until it sticks. Combined with
+ * the evaluator skipping on its own conflict, the ping always wins.
+ */
 @Service
 public class PingService {
 
-    private final CheckRepository checks;
-    private final PingEventRepository pingEvents;
-    private final Clock clock;
+    private static final int MAX_ATTEMPTS = 3;
 
-    public PingService(CheckRepository checks, PingEventRepository pingEvents, Clock clock) {
-        this.checks = checks;
-        this.pingEvents = pingEvents;
-        this.clock = clock;
+    private final PingWriter writer;
+
+    public PingService(PingWriter writer) {
+        this.writer = writer;
     }
 
     /**
-     * Record a ping for the check with the given token.
-     *
      * @return true if the token matched a check, false otherwise.
      */
-    @Transactional
     public boolean recordPing(String token, PingKind kind, String sourceIp, String userAgent) {
-        Check check = checks.findByPingToken(token).orElse(null);
-        if (check == null) {
-            return false;
+        OptimisticLockingFailureException lastConflict = null;
+        for (int attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+            try {
+                return writer.write(token, kind, sourceIp, userAgent) == PingWriter.Result.RECORDED;
+            } catch (OptimisticLockingFailureException conflict) {
+                // A sweep updated the check mid-write; reload (next attempt) and retry.
+                lastConflict = conflict;
+            }
         }
-
-        Instant now = clock.instant();
-        pingEvents.save(new PingEvent(UUID.randomUUID(), check.getId(), kind, now, sourceIp, userAgent));
-
-        // M1: only a SUCCESS ping advances the schedule and flips status to UP.
-        // START/FAIL are logged; acting on them comes with the evaluator (M2+).
-        if (kind == PingKind.SUCCESS) {
-            check.recordSuccess(now);
-        } else {
-            check.recordPing(now);
-        }
-        checks.save(check);
-        return true;
+        throw lastConflict;
     }
 }
