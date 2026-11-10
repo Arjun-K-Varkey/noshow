@@ -58,6 +58,11 @@ public class Check {
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
+    /** Optimistic-lock guard: a concurrent update makes a stale save fail. */
+    @jakarta.persistence.Version
+    @Column(nullable = false)
+    private long version;
+
     protected Check() {
         // for JPA
     }
@@ -87,6 +92,11 @@ public class Check {
     /** Record a start/fail ping. In M1 this only updates the last-seen time. */
     public void recordPing(Instant at) {
         this.lastPingAt = at;
+    }
+
+    /** Move the check to a new status. The transition itself is logged by the caller. */
+    public void transitionTo(CheckStatus newStatus) {
+        this.status = newStatus;
     }
 
     public UUID getId() {
