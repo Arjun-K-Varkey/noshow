@@ -89,6 +89,11 @@ public class Check {
         this.lastPingAt = at;
     }
 
+    /** Move the check to a new status. The transition itself is logged by the caller. */
+    public void transitionTo(CheckStatus newStatus) {
+        this.status = newStatus;
+    }
+
     public UUID getId() {
         return id;
     }
