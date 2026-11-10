@@ -15,7 +15,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -37,13 +36,8 @@ public class CheckController {
     @GetMapping("/")
     public String dashboard(Model model, HttpServletRequest request) {
         List<Check> all = checks.listNewestFirst();
-        Map<UUID, Instant> lastTransitions = new HashMap<>();
-        for (Check c : all) {
-            Instant at = checks.lastTransitionAt(c.getId());
-            if (at != null) {
-                lastTransitions.put(c.getId(), at);
-            }
-        }
+        List<UUID> ids = all.stream().map(Check::getId).toList();
+        Map<UUID, Instant> lastTransitions = checks.lastTransitions(ids);
         model.addAttribute("checks", all);
         model.addAttribute("lastTransitions", lastTransitions);
         model.addAttribute("baseUrl", baseUrl(request));

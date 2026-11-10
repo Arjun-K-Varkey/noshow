@@ -11,7 +11,10 @@ import java.security.SecureRandom;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.Base64;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -53,6 +56,19 @@ public class CheckService {
         return events.findFirstByCheckIdOrderByAtDesc(checkId)
                 .map(CheckEvent::getAt)
                 .orElse(null);
+    }
+
+    /** Last transition time for many checks in one query (dashboard list). */
+    @Transactional(readOnly = true)
+    public Map<UUID, Instant> lastTransitions(Collection<UUID> checkIds) {
+        if (checkIds.isEmpty()) {
+            return Map.of();
+        }
+        Map<UUID, Instant> result = new HashMap<>();
+        for (Object[] row : events.findLatestTransitionAtByCheckIds(checkIds)) {
+            result.put((UUID) row[0], (Instant) row[1]);
+        }
+        return result;
     }
 
     /** Status-change history for a check, newest first. */
