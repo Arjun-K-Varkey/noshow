@@ -19,3 +19,8 @@ spring:
 
 server:
   port: ${PORT:8080}
+
+noshow:
+  evaluator:
+    # How often the late-detection sweep runs, in milliseconds.
+    interval-ms: ${EVALUATOR_INTERVAL_MS:30000}

@@ -49,7 +49,8 @@ class PingFlowTest {
     void successPingMarksCheckUp() {
         Check created = checkService.create("backup-nightly", 3600, 300);
         assertThat(created.getStatus()).isEqualTo(CheckStatus.NEW);
-        assertThat(created.getNextExpectedAt()).isNull();
+        assertThat(created.getExpectedAt()).isNull();
+        assertThat(created.getDeadline()).isNull();
 
         boolean matched = pingService.recordPing(created.getPingToken(), PingKind.SUCCESS, "127.0.0.1", "curl/test");
         assertThat(matched).isTrue();
@@ -57,8 +58,11 @@ class PingFlowTest {
         Check reloaded = checkRepository.findById(created.getId()).orElseThrow();
         assertThat(reloaded.getStatus()).isEqualTo(CheckStatus.UP);
         assertThat(reloaded.getLastPingAt()).isNotNull();
-        assertThat(reloaded.getNextExpectedAt()).isNotNull();
-        assertThat(reloaded.getNextExpectedAt()).isAfter(reloaded.getLastPingAt());
+        assertThat(reloaded.getExpectedAt()).isNotNull();
+        assertThat(reloaded.getDeadline()).isNotNull();
+        // expected_at = last + period; deadline = expected_at + grace (grace > 0 here)
+        assertThat(reloaded.getExpectedAt()).isAfter(reloaded.getLastPingAt());
+        assertThat(reloaded.getDeadline()).isAfter(reloaded.getExpectedAt());
     }
 
     @Test

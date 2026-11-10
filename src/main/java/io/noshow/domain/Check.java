@@ -47,12 +47,21 @@ public class Check {
     @Column(name = "last_ping_at")
     private Instant lastPingAt;
 
-    /** When the next ping is due (period + grace after the last one). */
-    @Column(name = "next_expected_at")
-    private Instant nextExpectedAt;
+    /** When the next ping is due: last success + period. */
+    @Column(name = "expected_at")
+    private Instant expectedAt;
+
+    /** The hard cutoff: expected_at + grace. Past this, the check is DOWN. */
+    @Column(name = "deadline")
+    private Instant deadline;
 
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
+
+    /** Optimistic-lock guard: a concurrent update makes a stale save fail. */
+    @jakarta.persistence.Version
+    @Column(nullable = false)
+    private long version;
 
     protected Check() {
         // for JPA
@@ -76,12 +85,18 @@ public class Check {
     public void recordSuccess(Instant at) {
         this.lastPingAt = at;
         this.status = CheckStatus.UP;
-        this.nextExpectedAt = at.plusSeconds(periodSeconds + graceSeconds);
+        this.expectedAt = at.plusSeconds(periodSeconds);
+        this.deadline = this.expectedAt.plusSeconds(graceSeconds);
     }
 
     /** Record a start/fail ping. In M1 this only updates the last-seen time. */
     public void recordPing(Instant at) {
         this.lastPingAt = at;
+    }
+
+    /** Move the check to a new status. The transition itself is logged by the caller. */
+    public void transitionTo(CheckStatus newStatus) {
+        this.status = newStatus;
     }
 
     public UUID getId() {
@@ -112,8 +127,12 @@ public class Check {
         return lastPingAt;
     }
 
-    public Instant getNextExpectedAt() {
-        return nextExpectedAt;
+    public Instant getExpectedAt() {
+        return expectedAt;
+    }
+
+    public Instant getDeadline() {
+        return deadline;
     }
 
     public Instant getCreatedAt() {
