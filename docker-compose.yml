@@ -1,0 +1,15 @@
+services:
+  db:
+    image: postgres:16
+    container_name: noshow-db
+    environment:
+      POSTGRES_DB: noshow
+      POSTGRES_USER: noshow
+      POSTGRES_PASSWORD: noshow
+    ports:
+      - "5432:5432"
+    volumes:
+      - noshow-db-data:/var/lib/postgresql/data
+
+volumes:
+  noshow-db-data:

@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NoShow</title>
+    <style>
+        :root { color-scheme: light dark; }
+        * { box-sizing: border-box; }
+        body {
+            font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+            max-width: 920px; margin: 0 auto; padding: 2rem 1.25rem; line-height: 1.5;
+        }
+        h1 { margin: 0 0 .25rem; }
+        .tagline { color: #888; margin: 0 0 2rem; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 2.5rem; }
+        th, td { text-align: left; padding: .6rem .5rem; border-bottom: 1px solid #ddd3; vertical-align: top; }
+        th { font-size: .8rem; text-transform: uppercase; letter-spacing: .04em; color: #888; }
+        code { font-size: .85rem; word-break: break-all; }
+        .status { font-weight: 600; font-size: .8rem; padding: .15rem .5rem; border-radius: 999px; }
+        .status-UP { background: #e5f4e4; color: #1a7f37; }
+        .status-NEW { background: #eee; color: #555; }
+        .status-LATE { background: #f9eeda; color: #9a6700; }
+        .status-DOWN { background: #fbebeb; color: #c0392b; }
+        .status-PAUSED { background: #eee; color: #777; }
+        .muted { color: #999; }
+        form { display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: .75rem; align-items: end; }
+        label { display: block; font-size: .8rem; color: #888; margin-bottom: .25rem; }
+        input { width: 100%; padding: .5rem; border: 1px solid #ccc8; border-radius: 6px; background: transparent; color: inherit; }
+        button { padding: .55rem 1.1rem; border: 0; border-radius: 6px; background: #1a7f37; color: #fff; font-weight: 600; cursor: pointer; }
+        .empty { color: #999; font-style: italic; }
+        @media (max-width: 640px) { form { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <h1>NoShow</h1>
+    <p class="tagline">Know when a scheduled job doesn't run.</p>
+
+    <h2>Checks</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Status</th>
+                <th>Every</th>
+                <th>Last ping</th>
+                <th>Ping URL</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr th:if="${checks.isEmpty()}">
+                <td colspan="5" class="empty">No checks yet. Create one below.</td>
+            </tr>
+            <tr th:each="c : ${checks}">
+                <td th:text="${c.name}">backup-nightly</td>
+                <td><span class="status" th:classappend="'status-' + ${c.status}" th:text="${c.status}">NEW</span></td>
+                <td>
+                    <span th:text="${c.periodSeconds} + 's'">3600s</span>
+                    <span class="muted" th:if="${c.graceSeconds > 0}" th:text="'+ ' + ${c.graceSeconds} + 's grace'"></span>
+                </td>
+                <td>
+                    <span th:if="${c.lastPingAt != null}" th:text="${c.lastPingAt}">—</span>
+                    <span th:if="${c.lastPingAt == null}" class="muted">never</span>
+                </td>
+                <td><code th:text="${baseUrl} + '/ping/' + ${c.pingToken}">/ping/abc</code></td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h2>New check</h2>
+    <form method="post" action="/checks">
+        <div>
+            <label for="name">Name</label>
+            <input type="text" id="name" name="name" placeholder="backup-nightly" required>
+        </div>
+        <div>
+            <label for="periodSeconds">Period (seconds)</label>
+            <input type="number" id="periodSeconds" name="periodSeconds" min="1" value="3600" required>
+        </div>
+        <div>
+            <label for="graceSeconds">Grace (seconds)</label>
+            <input type="number" id="graceSeconds" name="graceSeconds" min="0" value="300">
+        </div>
+        <button type="submit">Create</button>
+    </form>
+</body>
+</html>
