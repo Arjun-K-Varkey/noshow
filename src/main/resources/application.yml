@@ -16,6 +16,15 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
+  mail:
+    # Timeouts so a stalled SMTP server fails fast instead of holding a
+    # delivery thread. These apply only when spring.mail.host is configured.
+    properties:
+      mail:
+        smtp:
+          connectiontimeout: 10000
+          timeout: 10000
+          writetimeout: 10000
 
 server:
   port: ${PORT:8080}
@@ -27,3 +36,14 @@ noshow:
   alerts:
     # Where alert emails go. Single address for now; per-account in M4.
     recipient: ${ALERT_RECIPIENT:}
+    # From address on alert emails.
+    from: ${ALERT_FROM:noreply@noshow.local}
+  outbox:
+    # How often the delivery worker runs, in milliseconds.
+    interval-ms: ${OUTBOX_INTERVAL_MS:15000}
+
+# Email delivery is enabled only when SMTP is configured, e.g.:
+#   SPRING_MAIL_HOST=smtp.example.com SPRING_MAIL_PORT=587
+#   SPRING_MAIL_USERNAME=... SPRING_MAIL_PASSWORD=...
+# Without spring.mail.host set, no email sender is created and alerts wait in
+# the outbox.

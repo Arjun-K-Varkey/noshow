@@ -75,6 +75,12 @@ public class NotificationOutbox {
         this.createdAt = createdAt;
     }
 
+    /** Mark this notification delivered. */
+    public void markSent(Instant at) {
+        this.status = OutboxStatus.SENT;
+        this.sentAt = at;
+    }
+
     public UUID getId() {
         return id;
     }
