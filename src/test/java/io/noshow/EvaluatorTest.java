@@ -95,12 +95,15 @@ class EvaluatorTest {
         // A further sweep with no change records nothing new.
         evaluator.evaluateDueChecks();
 
-        List<CheckEvent> events = checkEventRepository.findByCheckIdOrderByAtDesc(check.getId());
-        assertThat(events).hasSize(2);
-        assertThat(events.get(0).getToStatus()).isEqualTo(CheckStatus.DOWN);
-        assertThat(events.get(0).getFromStatus()).isEqualTo(CheckStatus.LATE);
-        assertThat(events.get(1).getToStatus()).isEqualTo(CheckStatus.LATE);
-        assertThat(events.get(1).getFromStatus()).isEqualTo(CheckStatus.UP);
+        // Only the evaluator's own transitions here (the first SUCCESS ping also
+        // logs a NEW -> UP event via the ping path).
+        List<CheckEvent> sweepEvents = checkEventRepository.findByCheckIdOrderByAtDesc(check.getId())
+                .stream().filter(e -> "evaluator".equals(e.getReason())).toList();
+        assertThat(sweepEvents).hasSize(2);
+        assertThat(sweepEvents.get(0).getToStatus()).isEqualTo(CheckStatus.DOWN);
+        assertThat(sweepEvents.get(0).getFromStatus()).isEqualTo(CheckStatus.LATE);
+        assertThat(sweepEvents.get(1).getToStatus()).isEqualTo(CheckStatus.LATE);
+        assertThat(sweepEvents.get(1).getFromStatus()).isEqualTo(CheckStatus.UP);
     }
 
     private Check reload(Check check) {
