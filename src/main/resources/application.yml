@@ -41,6 +41,10 @@ noshow:
   outbox:
     # How often the delivery worker runs, in milliseconds.
     interval-ms: ${OUTBOX_INTERVAL_MS:15000}
+    # Delivery retries: attempts before giving up, and exponential backoff bounds.
+    max-attempts: ${OUTBOX_MAX_ATTEMPTS:5}
+    base-backoff-ms: ${OUTBOX_BASE_BACKOFF_MS:60000}
+    max-backoff-ms: ${OUTBOX_MAX_BACKOFF_MS:3600000}
 
 # Email delivery is enabled only when SMTP is configured, e.g.:
 #   SPRING_MAIL_HOST=smtp.example.com SPRING_MAIL_PORT=587

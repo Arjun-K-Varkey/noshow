@@ -6,9 +6,11 @@ import io.noshow.repo.NotificationOutboxRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 
@@ -28,12 +30,21 @@ public class OutboxDispatcher {
     private final NotificationOutboxRepository outbox;
     private final ObjectProvider<AlertSender> senders;
     private final Clock clock;
+    private final int maxAttempts;
+    private final long baseBackoffMs;
+    private final long maxBackoffMs;
 
     public OutboxDispatcher(NotificationOutboxRepository outbox,
-                            ObjectProvider<AlertSender> senders, Clock clock) {
+                            ObjectProvider<AlertSender> senders, Clock clock,
+                            @Value("${noshow.outbox.max-attempts:5}") int maxAttempts,
+                            @Value("${noshow.outbox.base-backoff-ms:60000}") long baseBackoffMs,
+                            @Value("${noshow.outbox.max-backoff-ms:3600000}") long maxBackoffMs) {
         this.outbox = outbox;
         this.senders = senders;
         this.clock = clock;
+        this.maxAttempts = maxAttempts;
+        this.baseBackoffMs = baseBackoffMs;
+        this.maxBackoffMs = maxBackoffMs;
     }
 
     public void deliverPending() {
@@ -47,12 +58,30 @@ public class OutboxDispatcher {
             try {
                 sender.send(notification);
                 notification.markSent(clock.instant());
-                outbox.save(notification);
             } catch (Exception failure) {
-                // Left PENDING; retried next pass. Backoff + cap come in M3.4.
-                log.warn("Failed to send notification {} (will retry): {}",
-                        notification.getId(), failure.toString());
+                int nextAttempt = notification.getAttempts() + 1;
+                if (nextAttempt >= maxAttempts) {
+                    notification.recordFailure();
+                    log.warn("Giving up on notification {} after {} attempts: {}",
+                            notification.getId(), nextAttempt, failure.toString());
+                } else {
+                    Instant retryAt = clock.instant().plus(backoffFor(nextAttempt));
+                    notification.recordRetry(retryAt);
+                    log.warn("Failed to send notification {} (attempt {}, retry at {}): {}",
+                            notification.getId(), nextAttempt, retryAt, failure.toString());
+                }
             }
+            outbox.save(notification);
         }
+    }
+
+    /** Exponential backoff: base * 2^(attempt-1), capped at the max. */
+    private Duration backoffFor(int attempt) {
+        long shift = Math.min(attempt - 1, 30); // guard against overflow
+        long ms = baseBackoffMs << shift;
+        if (ms <= 0 || ms > maxBackoffMs) {
+            ms = maxBackoffMs;
+        }
+        return Duration.ofMillis(ms);
     }
 }
