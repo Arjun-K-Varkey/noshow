@@ -5,13 +5,20 @@ import io.noshow.service.CheckService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.server.ResponseStatusException;
 
+import java.time.Instant;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 /**
  * The dashboard: list checks and create new ones. Server-rendered with
@@ -30,9 +37,26 @@ public class CheckController {
     @GetMapping("/")
     public String dashboard(Model model, HttpServletRequest request) {
         List<Check> all = checks.listNewestFirst();
+        Map<UUID, Instant> lastTransitions = new HashMap<>();
+        for (Check c : all) {
+            Instant at = checks.lastTransitionAt(c.getId());
+            if (at != null) {
+                lastTransitions.put(c.getId(), at);
+            }
+        }
         model.addAttribute("checks", all);
+        model.addAttribute("lastTransitions", lastTransitions);
         model.addAttribute("baseUrl", baseUrl(request));
         return "checks";
+    }
+
+    @GetMapping("/checks/{id}/events")
+    public String history(@PathVariable UUID id, Model model) {
+        Check check = checks.find(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "No such check"));
+        model.addAttribute("check", check);
+        model.addAttribute("events", checks.history(id));
+        return "check-events";
     }
 
     @PostMapping("/checks")

@@ -4,9 +4,12 @@ import io.noshow.domain.CheckEvent;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 public interface CheckEventRepository extends JpaRepository<CheckEvent, UUID> {
 
     List<CheckEvent> findByCheckIdOrderByAtDesc(UUID checkId);
+
+    Optional<CheckEvent> findFirstByCheckIdOrderByAtDesc(UUID checkId);
 }
