@@ -3,6 +3,7 @@ package io.noshow.service;
 import io.noshow.domain.Check;
 import io.noshow.domain.CheckEvent;
 import io.noshow.domain.CheckStatus;
+import io.noshow.domain.NotificationKind;
 import io.noshow.domain.PingEvent;
 import io.noshow.domain.PingKind;
 import io.noshow.repo.CheckEventRepository;
@@ -30,13 +31,15 @@ public class PingWriter {
     private final CheckRepository checks;
     private final PingEventRepository pingEvents;
     private final CheckEventRepository checkEvents;
+    private final NotificationService notifications;
     private final Clock clock;
 
     public PingWriter(CheckRepository checks, PingEventRepository pingEvents,
-                      CheckEventRepository checkEvents, Clock clock) {
+                      CheckEventRepository checkEvents, NotificationService notifications, Clock clock) {
         this.checks = checks;
         this.pingEvents = pingEvents;
         this.checkEvents = checkEvents;
+        this.notifications = notifications;
         this.clock = clock;
     }
 
@@ -60,6 +63,11 @@ public class PingWriter {
             if (from != CheckStatus.UP) {
                 checkEvents.save(new CheckEvent(UUID.randomUUID(), check.getId(),
                         from, CheckStatus.UP, now, "ping"));
+            }
+            // Alert only on recovery from a DOWN we would have alerted on — not
+            // a first-up (NEW) or a soft LATE that never sent a DOWN alert.
+            if (from == CheckStatus.DOWN) {
+                notifications.enqueue(check, NotificationKind.RECOVERY, now);
             }
         } else {
             check.recordPing(now);
