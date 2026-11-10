@@ -52,20 +52,21 @@ public class Check {
     private Instant nextExpectedAt;
 
     @Column(name = "created_at", nullable = false)
-    private Instant createdAt = Instant.now();
+    private Instant createdAt;
 
     protected Check() {
         // for JPA
     }
 
-    public Check(UUID id, String name, long periodSeconds, long graceSeconds, String pingToken) {
+    public Check(UUID id, String name, long periodSeconds, long graceSeconds, String pingToken,
+                 Instant createdAt) {
         this.id = id;
         this.name = name;
         this.periodSeconds = periodSeconds;
         this.graceSeconds = graceSeconds;
         this.pingToken = pingToken;
         this.status = CheckStatus.NEW;
-        this.createdAt = Instant.now();
+        this.createdAt = createdAt;
     }
 
     /**

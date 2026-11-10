@@ -8,6 +8,7 @@ import io.noshow.repo.PingEventRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Clock;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -16,10 +17,12 @@ public class PingService {
 
     private final CheckRepository checks;
     private final PingEventRepository pingEvents;
+    private final Clock clock;
 
-    public PingService(CheckRepository checks, PingEventRepository pingEvents) {
+    public PingService(CheckRepository checks, PingEventRepository pingEvents, Clock clock) {
         this.checks = checks;
         this.pingEvents = pingEvents;
+        this.clock = clock;
     }
 
     /**
@@ -34,7 +37,7 @@ public class PingService {
             return false;
         }
 
-        Instant now = Instant.now();
+        Instant now = clock.instant();
         pingEvents.save(new PingEvent(UUID.randomUUID(), check.getId(), kind, now, sourceIp, userAgent));
 
         // M1: only a SUCCESS ping advances the schedule and flips status to UP.
