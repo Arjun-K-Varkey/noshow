@@ -44,15 +44,16 @@
                 <th>Status</th>
                 <th>Every</th>
                 <th>Last ping</th>
+                <th>Last change</th>
                 <th>Ping URL</th>
             </tr>
         </thead>
         <tbody>
             <tr th:if="${checks.isEmpty()}">
-                <td colspan="5" class="empty">No checks yet. Create one below.</td>
+                <td colspan="6" class="empty">No checks yet. Create one below.</td>
             </tr>
             <tr th:each="c : ${checks}">
-                <td th:text="${c.name}">backup-nightly</td>
+                <td><a th:href="@{/checks/{id}/events(id=${c.id})}" th:text="${c.name}">backup-nightly</a></td>
                 <td><span class="status" th:classappend="'status-' + ${c.status}" th:text="${c.status}">NEW</span></td>
                 <td>
                     <span th:text="${c.periodSeconds} + 's'">3600s</span>
@@ -61,6 +62,10 @@
                 <td>
                     <span th:if="${c.lastPingAt != null}" th:text="${c.lastPingAt}">—</span>
                     <span th:if="${c.lastPingAt == null}" class="muted">never</span>
+                </td>
+                <td>
+                    <span th:if="${lastTransitions.containsKey(c.id)}" th:text="${lastTransitions.get(c.id)}">—</span>
+                    <span th:unless="${lastTransitions.containsKey(c.id)}" class="muted">—</span>
                 </td>
                 <td><code th:text="${baseUrl} + '/ping/' + ${c.pingToken}">/ping/abc</code></td>
             </tr>
