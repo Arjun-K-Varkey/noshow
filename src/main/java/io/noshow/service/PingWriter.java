@@ -1,8 +1,11 @@
 package io.noshow.service;
 
 import io.noshow.domain.Check;
+import io.noshow.domain.CheckEvent;
+import io.noshow.domain.CheckStatus;
 import io.noshow.domain.PingEvent;
 import io.noshow.domain.PingKind;
+import io.noshow.repo.CheckEventRepository;
 import io.noshow.repo.CheckRepository;
 import io.noshow.repo.PingEventRepository;
 import org.springframework.stereotype.Component;
@@ -26,11 +29,14 @@ public class PingWriter {
 
     private final CheckRepository checks;
     private final PingEventRepository pingEvents;
+    private final CheckEventRepository checkEvents;
     private final Clock clock;
 
-    public PingWriter(CheckRepository checks, PingEventRepository pingEvents, Clock clock) {
+    public PingWriter(CheckRepository checks, PingEventRepository pingEvents,
+                      CheckEventRepository checkEvents, Clock clock) {
         this.checks = checks;
         this.pingEvents = pingEvents;
+        this.checkEvents = checkEvents;
         this.clock = clock;
     }
 
@@ -44,10 +50,17 @@ public class PingWriter {
         Instant now = clock.instant();
         pingEvents.save(new PingEvent(UUID.randomUUID(), check.getId(), kind, now, sourceIp, userAgent));
 
-        // M1/M2.3: only a SUCCESS ping advances the schedule and flips status to UP.
+        // Only a SUCCESS ping advances the schedule and flips status to UP.
         // START/FAIL are logged; acting on them comes later.
         if (kind == PingKind.SUCCESS) {
+            CheckStatus from = check.getStatus();
             check.recordSuccess(now);
+            // Log the recovery (or first-up) transition, but not a routine
+            // on-time ping where the status was already UP.
+            if (from != CheckStatus.UP) {
+                checkEvents.save(new CheckEvent(UUID.randomUUID(), check.getId(),
+                        from, CheckStatus.UP, now, "ping"));
+            }
         } else {
             check.recordPing(now);
         }
