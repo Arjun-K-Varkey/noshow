@@ -16,6 +16,15 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
+  mail:
+    # Timeouts so a stalled SMTP server fails fast instead of holding a
+    # delivery thread. These apply only when spring.mail.host is configured.
+    properties:
+      mail:
+        smtp:
+          connectiontimeout: 10000
+          timeout: 10000
+          writetimeout: 10000
 
 server:
   port: ${PORT:8080}
