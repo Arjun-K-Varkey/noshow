@@ -81,6 +81,18 @@ public class NotificationOutbox {
         this.sentAt = at;
     }
 
+    /** A delivery attempt failed; schedule another at {@code nextAttemptAt} (stays PENDING). */
+    public void recordRetry(Instant nextAttemptAt) {
+        this.attempts++;
+        this.nextAttemptAt = nextAttemptAt;
+    }
+
+    /** A delivery attempt failed and the retry cap is reached; give up. */
+    public void recordFailure() {
+        this.attempts++;
+        this.status = OutboxStatus.FAILED;
+    }
+
     public UUID getId() {
         return id;
     }
