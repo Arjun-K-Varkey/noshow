@@ -27,3 +27,14 @@ noshow:
   alerts:
     # Where alert emails go. Single address for now; per-account in M4.
     recipient: ${ALERT_RECIPIENT:}
+    # From address on alert emails.
+    from: ${ALERT_FROM:noreply@noshow.local}
+  outbox:
+    # How often the delivery worker runs, in milliseconds.
+    interval-ms: ${OUTBOX_INTERVAL_MS:15000}
+
+# Email delivery is enabled only when SMTP is configured, e.g.:
+#   SPRING_MAIL_HOST=smtp.example.com SPRING_MAIL_PORT=587
+#   SPRING_MAIL_USERNAME=... SPRING_MAIL_PASSWORD=...
+# Without spring.mail.host set, no email sender is created and alerts wait in
+# the outbox.
