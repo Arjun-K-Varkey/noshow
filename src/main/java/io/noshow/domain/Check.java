@@ -58,6 +58,11 @@ public class Check {
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
+    /** Optimistic-lock guard: a concurrent update makes a stale save fail. */
+    @jakarta.persistence.Version
+    @Column(nullable = false)
+    private long version;
+
     protected Check() {
         // for JPA
     }

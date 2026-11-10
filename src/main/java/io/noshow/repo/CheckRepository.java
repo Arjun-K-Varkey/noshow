@@ -4,6 +4,7 @@ import io.noshow.domain.Check;
 import io.noshow.domain.CheckStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -16,4 +17,7 @@ public interface CheckRepository extends JpaRepository<Check, UUID> {
     List<Check> findAllByOrderByCreatedAtDesc();
 
     List<Check> findByStatusIn(Collection<CheckStatus> statuses);
+
+    /** Checks that are due for evaluation: active and already past expected time. */
+    List<Check> findByStatusInAndExpectedAtLessThanEqual(Collection<CheckStatus> statuses, Instant now);
 }

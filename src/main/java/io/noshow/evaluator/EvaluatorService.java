@@ -1,20 +1,18 @@
 package io.noshow.evaluator;
 
 import io.noshow.domain.Check;
-import io.noshow.domain.CheckEvent;
 import io.noshow.domain.CheckStatus;
-import io.noshow.repo.CheckEventRepository;
 import io.noshow.repo.CheckRepository;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
-import java.util.UUID;
 
 /**
- * The dead man's switch. One sweep walks every active check and applies the
+ * The dead man's switch. One sweep selects every check that is due for
+ * evaluation — active and already past its expected time — and applies the
  * state machine against the current time:
  *
  * <pre>
@@ -23,55 +21,40 @@ import java.util.UUID;
  *   LATE -> DOWN   when now is past the deadline
  * </pre>
  *
- * Recovery (LATE/DOWN -> UP on a ping) lives in PingService/M2.4. PAUSED and
- * NEW checks are never touched here. Every transition is logged to
- * {@code check_event}.
+ * Recovery (LATE/DOWN -> UP on a ping) lives in the ping path (M2.4). PAUSED
+ * and NEW checks are never selected. Each check is transitioned in its own
+ * transaction (see {@link CheckTransitioner}); if a concurrent success ping
+ * updates a check mid-sweep, that check's optimistic-lock save fails and it is
+ * skipped so the ping is never overwritten.
  *
- * <p>Multi-instance safety (so two app instances do not both evaluate the same
- * check) is out of scope for this milestone and handled in M5 with a database
- * lock. This sweep assumes a single evaluator instance.
+ * <p>Multi-instance safety across nodes (so two instances don't both sweep the
+ * same check) is M5, using a database lock; this guards only the in-process
+ * scheduler/ping race.
  */
 @Service
 public class EvaluatorService {
 
-    private static final String REASON = "evaluator";
+    private static final List<CheckStatus> ACTIVE = List.of(CheckStatus.UP, CheckStatus.LATE);
 
     private final CheckRepository checks;
-    private final CheckEventRepository events;
+    private final CheckTransitioner transitioner;
     private final Clock clock;
 
-    public EvaluatorService(CheckRepository checks, CheckEventRepository events, Clock clock) {
+    public EvaluatorService(CheckRepository checks, CheckTransitioner transitioner, Clock clock) {
         this.checks = checks;
-        this.events = events;
+        this.transitioner = transitioner;
         this.clock = clock;
     }
 
-    @Transactional
     public void evaluateDueChecks() {
         Instant now = clock.instant();
-        List<Check> active = checks.findByStatusIn(List.of(CheckStatus.UP, CheckStatus.LATE));
-        for (Check check : active) {
-            evaluate(check, now);
-        }
-    }
-
-    private void evaluate(Check check, Instant now) {
-        if (check.getDeadline() == null || check.getExpectedAt() == null) {
-            return; // no successful ping yet; nothing to evaluate
-        }
-        CheckStatus from = check.getStatus();
-        CheckStatus to = from;
-
-        if (now.isAfter(check.getDeadline())) {
-            to = CheckStatus.DOWN;
-        } else if (now.isAfter(check.getExpectedAt())) {
-            to = CheckStatus.LATE;
-        }
-
-        if (to != from) {
-            check.transitionTo(to);
-            checks.save(check);
-            events.save(new CheckEvent(UUID.randomUUID(), check.getId(), from, to, now, REASON));
+        List<Check> due = checks.findByStatusInAndExpectedAtLessThanEqual(ACTIVE, now);
+        for (Check check : due) {
+            try {
+                transitioner.transition(check.getId(), now);
+            } catch (OptimisticLockingFailureException concurrentPing) {
+                // A success ping updated this check mid-sweep; the ping wins, skip.
+            }
         }
     }
 }
