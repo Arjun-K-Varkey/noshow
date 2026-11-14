@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Channels — NoShow</title>
+    <style>
+        :root { color-scheme: light dark; }
+        * { box-sizing: border-box; }
+        body {
+            font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+            max-width: 920px; margin: 0 auto; padding: 2rem 1.25rem; line-height: 1.5;
+        }
+        a.back { color: #888; text-decoration: none; font-size: .9rem; }
+        a.back:hover { text-decoration: underline; }
+        h1 { margin: .5rem 0 .25rem; }
+        .tagline { color: #888; margin: 0 0 2rem; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 2.5rem; }
+        th, td { text-align: left; padding: .6rem .5rem; border-bottom: 1px solid #ddd3; vertical-align: middle; }
+        th { font-size: .8rem; text-transform: uppercase; letter-spacing: .04em; color: #888; }
+        code { font-size: .85rem; word-break: break-all; }
+        .pill { font-weight: 600; font-size: .78rem; padding: .1rem .5rem; border-radius: 999px; }
+        .yes { background: #e5f4e4; color: #1a7f37; }
+        .no { background: #eee; color: #777; }
+        form.inline { display: inline; }
+        button { padding: .35rem .7rem; border: 1px solid #ccc8; border-radius: 6px; background: transparent; color: inherit; cursor: pointer; font-size: .85rem; }
+        button.primary { background: #1a7f37; color: #fff; border: 0; font-weight: 600; }
+        .add { display: grid; grid-template-columns: 1fr 2fr auto; gap: .75rem; align-items: end; }
+        label { display: block; font-size: .8rem; color: #888; margin-bottom: .25rem; }
+        input, select { width: 100%; padding: .5rem; border: 1px solid #ccc8; border-radius: 6px; background: transparent; color: inherit; }
+        .empty { color: #999; font-style: italic; }
+        .flash { padding: .6rem .8rem; border-radius: 6px; margin-bottom: 1.5rem; }
+        .flash.ok { background: #e5f4e4; color: #1a7f37; }
+        .flash.err { background: #fbebeb; color: #c0392b; }
+        @media (max-width: 640px) { .add { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <a class="back" href="/">← All checks</a>
+    <h1>Channels</h1>
+    <p class="tagline">Where alerts are delivered. Verify a channel before it's used.</p>
+
+    <div th:if="${message}" class="flash ok" th:text="${message}"></div>
+    <div th:if="${error}" class="flash err" th:text="${error}"></div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Type</th>
+                <th>Destination</th>
+                <th>Verified</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr th:if="${channels.isEmpty()}">
+                <td colspan="4" class="empty">No channels yet. Add one below.</td>
+            </tr>
+            <tr th:each="c : ${channels}">
+                <td th:text="${c.type}">EMAIL</td>
+                <td><code th:text="${c.config}">ops@example.com</code></td>
+                <td>
+                    <span th:if="${c.verified}" class="pill yes">verified</span>
+                    <span th:unless="${c.verified}" class="pill no">unverified</span>
+                </td>
+                <td>
+                    <form class="inline" method="post" th:action="@{/channels/{id}/verify(id=${c.id})}">
+                        <button type="submit">Send test &amp; verify</button>
+                    </form>
+                    <form class="inline" method="post" th:action="@{/channels/{id}/delete(id=${c.id})}">
+                        <button type="submit">Delete</button>
+                    </form>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h2>Add channel</h2>
+    <form class="add" method="post" action="/channels">
+        <div>
+            <label for="type">Type</label>
+            <select id="type" name="type">
+                <option th:each="t : ${types}" th:value="${t}" th:text="${t}">EMAIL</option>
+            </select>
+        </div>
+        <div>
+            <label for="config">Destination</label>
+            <input type="text" id="config" name="config" placeholder="ops@example.com or https://hooks.slack.com/..." required>
+        </div>
+        <button type="submit" class="primary">Add</button>
+    </form>
+</body>
+</html>
